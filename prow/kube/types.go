@@ -60,6 +60,9 @@ type Port = v1.ContainerPort
 
 // EnvVar is a kubernetes v1 EnvVar
 type EnvVar = v1.EnvVar
+type EnvVarSource = v1.EnvVarSource
+type ConfigMapKeySelector = v1.ConfigMapKeySelector
+type LocalObjectReference = v1.LocalObjectReference
 
 // Volume is a kubernetes v1 Volume
 type Volume = v1.Volume
