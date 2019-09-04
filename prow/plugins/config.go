@@ -28,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/test-infra/prow/bugzilla"
 	"k8s.io/test-infra/prow/labels"
 )
 
@@ -1049,6 +1050,39 @@ type BugzillaRepoOptions struct {
 	Branches map[string]BugzillaBranchOptions `json:"branches"`
 }
 
+// BugzillaBugState describes bug states in the Bugzilla plugin config, used
+// for example to specify states that bugs are supposed to be in or to which
+// they should be made after some action.
+type BugzillaBugState struct {
+	Status     string `json:"status,omitempty"`
+	Resolution string `json:"resolution,omitempty"`
+}
+
+// AsBugUpdate converts a state into a BugUpdate struct used by the API
+// to update bugs
+func (state *BugzillaBugState) AsBugUpdate() *bugzilla.BugUpdate {
+	if state == nil {
+		return nil
+	}
+
+	return &bugzilla.BugUpdate{Status: state.Status, Resolution: state.Resolution}
+}
+
+// Matches returns whether a given bug matches the state
+func (state *BugzillaBugState) Matches(bug *bugzilla.Bug) bool {
+	if state == nil || bug == nil {
+		return false
+	}
+	if state.Status != "" && state.Status != bug.Status {
+		return false
+	}
+
+	if state.Resolution != "" && state.Resolution != bug.Resolution {
+		return false
+	}
+	return true
+}
+
 // BugzillaBranchOptions describes how to check if a Bugzilla bug is valid or not.
 type BugzillaBranchOptions struct {
 	// ValidateByDefault determines whether a validation check is run for all pull
@@ -1061,10 +1095,15 @@ type BugzillaBranchOptions struct {
 	TargetRelease *string `json:"target_release,omitempty"`
 	// Statuses determine which statuses a bug may have to be valid
 	Statuses *[]string `json:"statuses,omitempty"`
+	// ValidStates determine states in which the bug may be to be valid
+	ValidStates []BugzillaBugState `json:"valid_states,omitempty"`
 
 	// DependentBugStatuses determine which statuses a bug's dependent bugs may have
 	// to deem the child bug valid
 	DependentBugStatuses *[]string `json:"dependent_bug_statuses,omitempty"`
+	// DependentBugStates determine states in which a bug's dependents bugs may be
+	// to deem the child bug valid
+	DependentBugStates []BugzillaBugState `json:"dependent_bug_states,omitempty"`
 	// DependentBugTargetRelease determines which release a bug's dependent bugs need to target to be valid
 	DependentBugTargetRelease *string `json:"dependent_bug_target_release,omitempty"`
 
@@ -1072,12 +1111,40 @@ type BugzillaBranchOptions struct {
 	// deemed valid and linked to a PR. Will implicitly be considered a part of `statuses`
 	// if others are set.
 	StatusAfterValidation *string `json:"status_after_validation,omitempty"`
+	// StateAfterValidation is the state to which the bug will be moved after being
+	// deemed valid and linked to a PR. Will implicitly be considered a part of `ValidStates`
+	// if others are set.
+	StateAfterValidation *BugzillaBugState `json:"state_after_validation"`
 	// AddExternalLink determines whether the pull request will be added to the Bugzilla
 	// bug using the ExternalBug tracker API after being validated
 	AddExternalLink *bool `json:"add_external_link,omitempty"`
 	// StatusAfterMerge is the status which the bug will be moved to after all pull requests
 	// in the external bug tracker have been merged.
 	StatusAfterMerge *string `json:"status_after_merge,omitempty"`
+	// StateAfterMerge is the state to which the bug will be moved after all pull requests
+	// in the external bug tracker have been merged.
+	StateAfterMerge *BugzillaBugState `json:"state_after_merge,omitempty"`
+}
+
+func statesMatch(first, second []BugzillaBugState) bool {
+	if len(first) != len(second) {
+		return false
+	}
+
+	count := len(first)
+	fMap := make(map[BugzillaBugState]interface{}, count)
+	sMap := make(map[BugzillaBugState]interface{}, count)
+	for i := 0; i < count; i++ {
+		fMap[first[i]] = nil
+		sMap[second[i]] = nil
+	}
+
+	for key := range fMap {
+		if _, ok := sMap[key]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (o BugzillaBranchOptions) matches(other BugzillaBranchOptions) bool {
@@ -1087,17 +1154,15 @@ func (o BugzillaBranchOptions) matches(other BugzillaBranchOptions) bool {
 		(o.IsOpen != nil && other.IsOpen != nil && *o.IsOpen == *other.IsOpen)
 	targetReleaseMatch := o.TargetRelease == nil && other.TargetRelease == nil ||
 		(o.TargetRelease != nil && other.TargetRelease != nil && *o.TargetRelease == *other.TargetRelease)
-	statusesMatch := o.Statuses == nil && other.Statuses == nil ||
-		(o.Statuses != nil && other.Statuses != nil && sets.NewString(*o.Statuses...).Equal(sets.NewString(*other.Statuses...)))
-	dependentBugStatusesMatch := o.DependentBugStatuses == nil && other.DependentBugStatuses == nil ||
-		(o.DependentBugStatuses != nil && other.DependentBugStatuses != nil && sets.NewString(*o.DependentBugStatuses...).Equal(sets.NewString(*other.DependentBugStatuses...)))
-	statusesAfterValidationMatch := o.StatusAfterValidation == nil && other.StatusAfterValidation == nil ||
-		(o.StatusAfterValidation != nil && other.StatusAfterValidation != nil && *o.StatusAfterValidation == *other.StatusAfterValidation)
+	bugStatesMatch := statesMatch(o.ValidStates, other.ValidStates)
+	dependentBugStatesMatch := statesMatch(o.DependentBugStates, other.DependentBugStates)
+	statesAfterValidationMatch := o.StateAfterValidation == nil && other.StateAfterValidation == nil ||
+		(o.StateAfterValidation != nil && other.StateAfterValidation != nil && *o.StateAfterValidation == *other.StateAfterValidation)
 	addExternalLinkMatch := o.AddExternalLink == nil && other.AddExternalLink == nil ||
 		(o.AddExternalLink != nil && other.AddExternalLink != nil && *o.AddExternalLink == *other.AddExternalLink)
-	statusAfterMergeMatch := o.StatusAfterMerge == nil && other.StatusAfterMerge == nil ||
-		(o.StatusAfterMerge != nil && other.StatusAfterMerge != nil && *o.StatusAfterMerge == *other.StatusAfterMerge)
-	return validateByDefaultMatch && isOpenMatch && targetReleaseMatch && statusesMatch && dependentBugStatusesMatch && statusesAfterValidationMatch && addExternalLinkMatch && statusAfterMergeMatch
+	statesAfterMergeMatch := o.StateAfterMerge == nil && other.StateAfterMerge == nil ||
+		(o.StateAfterMerge != nil && other.StateAfterMerge != nil && *o.StateAfterMerge == *other.StateAfterMerge)
+	return validateByDefaultMatch && isOpenMatch && targetReleaseMatch && bugStatesMatch && dependentBugStatesMatch && statesAfterValidationMatch && addExternalLinkMatch && statesAfterMergeMatch
 }
 
 const BugzillaOptionsWildcard = `*`
@@ -1124,23 +1189,39 @@ func ResolveBugzillaOptions(parent, child BugzillaBranchOptions) BugzillaBranchO
 	if parent.TargetRelease != nil {
 		output.TargetRelease = parent.TargetRelease
 	}
+	if parent.ValidStates != nil {
+		output.ValidStates = parent.ValidStates
+	}
 	if parent.Statuses != nil {
-		output.Statuses = parent.Statuses
+		for _, status := range *parent.Statuses {
+			output.ValidStates = append(output.ValidStates, BugzillaBugState{Status: status})
+		}
+	}
+	if parent.DependentBugStates != nil {
+		output.DependentBugStates = parent.DependentBugStates
 	}
 	if parent.DependentBugStatuses != nil {
-		output.DependentBugStatuses = parent.DependentBugStatuses
+		for _, status := range *parent.DependentBugStatuses {
+			output.DependentBugStates = append(output.DependentBugStates, BugzillaBugState{Status: status})
+		}
 	}
 	if parent.StatusAfterValidation != nil {
-		output.StatusAfterValidation = parent.StatusAfterValidation
+		output.StateAfterValidation = &BugzillaBugState{Status: *output.StatusAfterValidation}
+	}
+	if parent.StateAfterValidation != nil {
+		output.StateAfterValidation = parent.StateAfterValidation
 	}
 	if parent.AddExternalLink != nil {
 		output.AddExternalLink = parent.AddExternalLink
 	}
 	if parent.StatusAfterMerge != nil {
-		output.StatusAfterMerge = parent.StatusAfterMerge
+		output.StateAfterMerge = &BugzillaBugState{Status: *output.StatusAfterMerge}
+	}
+	if parent.StateAfterMerge != nil {
+		output.StateAfterMerge = parent.StateAfterMerge
 	}
 
-	//override with the child
+	// override with the child
 	if child.ValidateByDefault != nil {
 		output.ValidateByDefault = child.ValidateByDefault
 	}
@@ -1150,22 +1231,45 @@ func ResolveBugzillaOptions(parent, child BugzillaBranchOptions) BugzillaBranchO
 	if child.TargetRelease != nil {
 		output.TargetRelease = child.TargetRelease
 	}
+
+	if child.ValidStates != nil {
+		output.ValidStates = child.ValidStates
+	}
 	if child.Statuses != nil {
-		output.Statuses = child.Statuses
+		if child.ValidStates == nil {
+			output.ValidStates = []BugzillaBugState{}
+		}
+		for _, status := range *child.Statuses {
+			output.ValidStates = append(output.ValidStates, BugzillaBugState{Status: status})
+		}
+	}
+
+	if child.DependentBugStates != nil {
+		output.DependentBugStates = child.DependentBugStates
 	}
 	if child.DependentBugStatuses != nil {
-		output.DependentBugStatuses = child.DependentBugStatuses
+		if child.DependentBugStates == nil {
+			output.DependentBugStates = []BugzillaBugState{}
+		}
+		for _, status := range *child.DependentBugStatuses {
+			output.DependentBugStates = append(output.DependentBugStates, BugzillaBugState{Status: status})
+		}
 	}
-	if child.StatusAfterValidation != nil {
-		output.StatusAfterValidation = child.StatusAfterValidation
+	if child.StatusAfterValidation != nil && child.StateAfterValidation == nil {
+		output.StateAfterValidation = &BugzillaBugState{Status: *child.StatusAfterValidation}
+	}
+	if child.StateAfterValidation != nil {
+		output.StateAfterValidation = child.StateAfterValidation
 	}
 	if child.AddExternalLink != nil {
 		output.AddExternalLink = child.AddExternalLink
 	}
-	if child.StatusAfterMerge != nil {
-		output.StatusAfterMerge = child.StatusAfterMerge
+	if child.StatusAfterMerge != nil && child.StateAfterMerge == nil {
+		output.StateAfterMerge = &BugzillaBugState{Status: *child.StatusAfterMerge}
 	}
-
+	if child.StateAfterMerge != nil {
+		output.StateAfterMerge = child.StateAfterMerge
+	}
 	return output
 }
 
