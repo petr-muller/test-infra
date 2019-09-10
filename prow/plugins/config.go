@@ -591,7 +591,7 @@ func warnDeprecated(last *time.Time, freq time.Duration, msg string) {
 	// Warning is stale, will we win the race to warn?
 	warnLock.Lock()
 	defer warnLock.Unlock()
-	now := time.Now()           // Recalculate now, we might wait awhile for the lock
+	now := time.Now() // Recalculate now, we might wait awhile for the lock
 	if now.Sub(*last) <= freq { // Nope, we lost
 		return
 	}
@@ -1058,6 +1058,11 @@ type BugzillaBugState struct {
 	Resolution string `json:"resolution,omitempty"`
 }
 
+// String converts a Bugzilla state into human-readable description
+func (s BugzillaBugState) String() string {
+	return bugzilla.PrettyStatus(s.Status, s.Resolution)
+}
+
 // AsBugUpdate converts a state into a BugUpdate struct used by the API
 // to update bugs
 func (state *BugzillaBugState) AsBugUpdate() *bugzilla.BugUpdate {
@@ -1096,14 +1101,14 @@ type BugzillaBranchOptions struct {
 	// Statuses determine which statuses a bug may have to be valid
 	Statuses *[]string `json:"statuses,omitempty"`
 	// ValidStates determine states in which the bug may be to be valid
-	ValidStates []BugzillaBugState `json:"valid_states,omitempty"`
+	ValidStates *[]BugzillaBugState `json:"valid_states,omitempty"`
 
 	// DependentBugStatuses determine which statuses a bug's dependent bugs may have
 	// to deem the child bug valid
 	DependentBugStatuses *[]string `json:"dependent_bug_statuses,omitempty"`
 	// DependentBugStates determine states in which a bug's dependents bugs may be
 	// to deem the child bug valid
-	DependentBugStates []BugzillaBugState `json:"dependent_bug_states,omitempty"`
+	DependentBugStates *[]BugzillaBugState `json:"dependent_bug_states,omitempty"`
 	// DependentBugTargetRelease determines which release a bug's dependent bugs need to target to be valid
 	DependentBugTargetRelease *string `json:"dependent_bug_target_release,omitempty"`
 
@@ -1126,24 +1131,36 @@ type BugzillaBranchOptions struct {
 	StateAfterMerge *BugzillaBugState `json:"state_after_merge,omitempty"`
 }
 
+type BugzillaBugStateSet map[BugzillaBugState]interface{}
+
+func NewBugzillaBugStateSet(states []BugzillaBugState) BugzillaBugStateSet {
+	set := make(BugzillaBugStateSet, len(states))
+	for _, state := range states {
+		set[state] = nil
+	}
+
+	return set
+}
+
+func (s BugzillaBugStateSet) Has(state BugzillaBugState) bool {
+	_, ok := s[state]
+	return ok
+}
+
 func statesMatch(first, second []BugzillaBugState) bool {
 	if len(first) != len(second) {
 		return false
 	}
 
-	count := len(first)
-	fMap := make(map[BugzillaBugState]interface{}, count)
-	sMap := make(map[BugzillaBugState]interface{}, count)
-	for i := 0; i < count; i++ {
-		fMap[first[i]] = nil
-		sMap[second[i]] = nil
-	}
+	firstSet := NewBugzillaBugStateSet(first)
+	secondSet := NewBugzillaBugStateSet(second)
 
-	for key := range fMap {
-		if _, ok := sMap[key]; !ok {
+	for state := range firstSet {
+		if !secondSet.Has(state) {
 			return false
 		}
 	}
+
 	return true
 }
 

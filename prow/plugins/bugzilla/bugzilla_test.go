@@ -88,13 +88,13 @@ orgs:
 <li>on the "global-branch" branch, valid bugs must be closed and target the "global-branch-default" release.</li>
 </ul>`,
 			"my-org/some-repo": `The plugin has the following configuration:<ul>
-<li>by default, valid bugs must be open and target the "my-org-default" release. After being linked to a pull request, bugs will be moved to the "PRE" state.</li>
-<li>on the "my-org-branch" branch, valid bugs must be open and target the "my-org-branch-default" release. After being linked to a pull request, bugs will be moved to the "POST" state and updated to refer to the pull request using the external bug tracker.</li>
+<li>by default, valid bugs must be open and target the "my-org-default" release. After being linked to a pull request, bugs will be moved to the PRE state.</li>
+<li>on the "my-org-branch" branch, valid bugs must be open and target the "my-org-branch-default" release. After being linked to a pull request, bugs will be moved to the POST state and updated to refer to the pull request using the external bug tracker.</li>
 </ul>`,
 			"my-org/my-repo": `The plugin has the following configuration:<ul>
-<li>by default, valid bugs must be closed, target the "my-repo-default" release, and be in one of the following states: VALIDATED. After being linked to a pull request, bugs will be moved to the "PRE" state.</li>
-<li>on the "my-org-branch" branch, valid bugs must be closed, target the "my-repo-default" release, and be in one of the following states: VALIDATED. After being linked to a pull request, bugs will be moved to the "POST" state and updated to refer to the pull request using the external bug tracker.</li>
-<li>on the "my-repo-branch" branch, valid bugs must be closed, target the "my-repo-branch" release, and be in one of the following states: MODIFIED. After being linked to a pull request, bugs will be moved to the "PRE" state, updated to refer to the pull request using the external bug tracker, and moved to the "MODIFIED" state when all linked pull requests are merged.</li>
+<li>by default, valid bugs must be closed, target the "my-repo-default" release, and be in one of the following states: VALIDATED. After being linked to a pull request, bugs will be moved to the PRE state.</li>
+<li>on the "my-org-branch" branch, valid bugs must be closed, target the "my-repo-default" release, and be in one of the following states: VALIDATED. After being linked to a pull request, bugs will be moved to the POST state and updated to refer to the pull request using the external bug tracker.</li>
+<li>on the "my-repo-branch" branch, valid bugs must be closed, target the "my-repo-branch" release, and be in one of the following states: MODIFIED. After being linked to a pull request, bugs will be moved to the PRE state, updated to refer to the pull request using the external bug tracker, and moved to the MODIFIED state when all linked pull requests are merged.</li>
 </ul>`,
 		},
 		Commands: []pluginhelp.Command{{

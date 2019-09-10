@@ -107,13 +107,13 @@ func helpProvider(config *plugins.Configuration, enabledRepos []string) (*plugin
 			}
 			var updates []string
 			if opts[branch].StateAfterValidation != nil {
-				updates = append(updates, fmt.Sprintf("moved to the %q state", prettyState(*opts[branch].StateAfterValidation)))
+				updates = append(updates, fmt.Sprintf("moved to the %s state", *opts[branch].StateAfterValidation))
 			}
 			if opts[branch].AddExternalLink != nil && *opts[branch].AddExternalLink {
 				updates = append(updates, "updated to refer to the pull request using the external bug tracker")
 			}
 			if opts[branch].StateAfterMerge != nil {
-				updates = append(updates, fmt.Sprintf("moved to the %q state when all linked pull requests are merged", prettyState(*opts[branch].StateAfterMerge)))
+				updates = append(updates, fmt.Sprintf("moved to the %s state when all linked pull requests are merged", *opts[branch].StateAfterMerge))
 			}
 
 			if len(updates) > 0 {
@@ -360,9 +360,9 @@ To reference a bug, add 'Bug XXX:' to the title of this pull request and request
 			if update != nil && (update.Status != bug.Status || update.Resolution != bug.Resolution) {
 				if err := bc.UpdateBug(e.bugId, *update); err != nil {
 					log.WithError(err).Warn("Unexpected error updating Bugzilla bug.")
-					return comment(formatError(fmt.Sprintf("updating to the %s state", prettyState(*options.StateAfterValidation)), bc.Endpoint(), e.bugId, err))
+					return comment(formatError(fmt.Sprintf("updating to the %s state", *options.StateAfterValidation), bc.Endpoint(), e.bugId, err))
 				}
-				response += fmt.Sprintf(" The bug has been moved to the %s state.", prettyState(*options.StateAfterValidation))
+				response += fmt.Sprintf(" The bug has been moved to the %s state.", *options.StateAfterValidation)
 			}
 			if options.AddExternalLink != nil && *options.AddExternalLink {
 				changed, err := bc.AddPullRequestAsExternalBug(e.bugId, e.org, e.repo, e.number)
@@ -435,22 +435,10 @@ func bugMatchesStates(bug *bugzilla.Bug, states []plugins.BugzillaBugState) bool
 	return false
 }
 
-func prettyStatus(status, resolution string) string {
-	if resolution == "" {
-		return status
-	}
-
-	return fmt.Sprintf("%s (%s)", status, resolution)
-}
-
-func prettyState(bugState plugins.BugzillaBugState) string {
-	return prettyStatus(bugState.Status, bugState.Resolution)
-}
-
 func prettyStates(statuses []plugins.BugzillaBugState) []string {
 	pretty := make([]string, 0, len(statuses))
 	for _, status := range statuses {
-		pretty = append(pretty, prettyStatus(status.Status, status.Resolution))
+		pretty = append(pretty, bugzilla.PrettyStatus(status.Status, status.Resolution))
 	}
 	return pretty
 }
@@ -491,7 +479,7 @@ func validateBug(bug bugzilla.Bug, dependents []bugzilla.Bug, options plugins.Bu
 		}
 		if !bugMatchesStates(&bug, allowed) {
 			valid = false
-			errors = append(errors, fmt.Sprintf("expected the bug to be in one of the following states: %s, but it is %s instead", strings.Join(prettyStates(allowed), ", "), prettyStatus(bug.Status, bug.Resolution)))
+			errors = append(errors, fmt.Sprintf("expected the bug to be in one of the following states: %s, but it is %s instead", strings.Join(prettyStates(allowed), ", "), bugzilla.PrettyStatus(bug.Status, bug.Resolution)))
 		}
 	}
 
@@ -500,7 +488,7 @@ func validateBug(bug bugzilla.Bug, dependents []bugzilla.Bug, options plugins.Bu
 			if !bugMatchesStates(&bug, options.DependentBugStates) {
 				valid = false
 				expected := strings.Join(prettyStates(options.DependentBugStates), ", ")
-				actual := prettyStatus(bug.Status, bug.Resolution)
+				actual := bugzilla.PrettyStatus(bug.Status, bug.Resolution)
 				errors = append(errors, fmt.Sprintf("expected dependent "+bugLink+" to be in one of the following states: %s, but it is %s instead", bug.ID, endpoint, bug.ID, expected, actual))
 			}
 		}
@@ -552,7 +540,7 @@ func handleMerge(e event, gc githubClient, bc bugzilla.Client, options plugins.B
 			allowed = append(allowed, *options.StateAfterValidation)
 		}
 		if !bugMatchesStates(bug, allowed) {
-			return comment(fmt.Sprintf(bugLink+" is in an unrecognized state (%s) and will not be moved to the %s state.", e.bugId, bc.Endpoint(), e.bugId, prettyStatus(bug.Status, bug.Resolution), prettyState(*options.StateAfterMerge)))
+			return comment(fmt.Sprintf(bugLink+" is in an unrecognized state (%s) and will not be moved to the %s state.", e.bugId, bc.Endpoint(), e.bugId, bugzilla.PrettyStatus(bug.Status, bug.Resolution), *options.StateAfterMerge))
 		}
 	}
 
@@ -586,7 +574,7 @@ func handleMerge(e event, gc githubClient, bc bugzilla.Client, options plugins.B
 			log.WithError(err).Warn("Unexpected error updating Bugzilla bug.")
 			return comment(formatError(fmt.Sprintf("updating to the %s state", *options.StateAfterMerge), bc.Endpoint(), e.bugId, err))
 		}
-		return comment(fmt.Sprintf("All pull requests linked via external trackers have merged. "+bugLink+" has been moved to the %s state.", e.bugId, bc.Endpoint(), e.bugId, prettyState(*options.StateAfterMerge)))
+		return comment(fmt.Sprintf("All pull requests linked via external trackers have merged. "+bugLink+" has been moved to the %s state.", e.bugId, bc.Endpoint(), e.bugId, *options.StateAfterMerge))
 	}
 	return nil
 }
