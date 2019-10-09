@@ -307,7 +307,12 @@ type Repo struct {
 	Fork          bool   `json:"fork"`
 	DefaultBranch string `json:"default_branch"`
 	Archived      bool   `json:"archived"`
-
+	Private       bool   `json:"private"`
+	Description   string `json:"description"`
+	Homepage      string `json:"homepage"`
+	HasIssues     bool   `json:"has_issues"`
+	HasProjects   bool   `json:"has_projects"`
+	HasWiki       bool   `json:"has_wiki"`
 	// Permissions reflect the permission level for the requester, so
 	// on a repository GET call this will be for the user whose token
 	// is being used, if listing a team's repos this will be for the
