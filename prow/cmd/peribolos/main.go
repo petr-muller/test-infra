@@ -342,7 +342,6 @@ func dumpOrgConfig(client dumpClient, orgName string, ignoreSecretTeams bool) (*
 	for idx, repo := range repos {
 		logrus.WithField("repo", repo.FullName).Debug("Recording repo.")
 		repoConf := org.Repo{
-			Name:        &repos[idx].Name,
 			Description: &repos[idx].Description,
 			HomePage:    &repos[idx].Homepage,
 			Private:     &repos[idx].Private,
@@ -350,7 +349,7 @@ func dumpOrgConfig(client dumpClient, orgName string, ignoreSecretTeams bool) (*
 			HasProjects: &repos[idx].HasProjects,
 			HasWiki:     &repos[idx].HasWiki,
 		}
-		out.Repos[repo.Name] = repoConf
+		out.Repos[repos[idx].Name] = repoConf
 	}
 
 	return &out, nil

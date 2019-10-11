@@ -48,7 +48,6 @@ type Metadata struct {
 //
 // See https://developer.github.com/v3/repos/#edit
 type Repo struct {
-	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
 	HomePage    *string `json:"homepage,omitempty"`
 	Private     *bool   `json:"private,omitempty"`

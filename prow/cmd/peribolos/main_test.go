@@ -1887,7 +1887,6 @@ func TestDumpOrgConfig(t *testing.T) {
 				Admins:  []string{"james", "giant", "peach"},
 				Repos: map[string]org.Repo{
 					"project": {
-						Name:        &repoName,
 						Description: &repoDescription,
 						HomePage:    &repoHomepage,
 						Private:     &no,
@@ -2546,7 +2545,6 @@ func TestConfigureRepos(t *testing.T) {
 	newName := "new"
 	newDescription := "A new repository."
 	newConfigRepo := org.Repo{
-		Name:        &newName,
 		Description: &newDescription,
 	}
 	newRepo := github.Repo{
@@ -2556,7 +2554,6 @@ func TestConfigureRepos(t *testing.T) {
 
 	fail := "fail"
 	failConfigRepo := org.Repo{
-		Name:        &fail,
 		Description: &newDescription,
 	}
 
