@@ -2537,9 +2537,9 @@ func TestConfigureRepos(t *testing.T) {
 
 	oldName := "old"
 	oldRepo := github.Repo{
-		Name:          oldName,
-		FullName:      fmt.Sprintf("%s/%s", orgName, oldName),
-		Description:   "An old existing repository",
+		Name:        oldName,
+		FullName:    fmt.Sprintf("%s/%s", orgName, oldName),
+		Description: "An old existing repository",
 	}
 
 	newName := "new"
@@ -2548,8 +2548,8 @@ func TestConfigureRepos(t *testing.T) {
 		Description: &newDescription,
 	}
 	newRepo := github.Repo{
-		Name:          newName,
-		Description:   newDescription,
+		Name:        newName,
+		Description: newDescription,
 	}
 
 	fail := "fail"
@@ -2558,10 +2558,10 @@ func TestConfigureRepos(t *testing.T) {
 	}
 
 	testCases := []struct {
-		description string
-		orgConfig   org.Config
+		description     string
+		orgConfig       org.Config
 		orgNameOverride string
-		repos       []github.Repo
+		repos           []github.Repo
 
 		expectError   bool
 		expectedRepos []github.Repo
@@ -2570,17 +2570,17 @@ func TestConfigureRepos(t *testing.T) {
 			description:   "survives empty config",
 			expectedRepos: []github.Repo{},
 		},
-	{
-		description: "survives nil repos config",
-		orgConfig: org.Config{
-			Repos:    nil,
+		{
+			description: "survives nil repos config",
+			orgConfig: org.Config{
+				Repos: nil,
+			},
+			expectedRepos: []github.Repo{},
 		},
-		expectedRepos: []github.Repo{},
-	},
 		{
 			description: "survives empty repos config",
 			orgConfig: org.Config{
-				Repos:    map[string]org.Repo{},
+				Repos: map[string]org.Repo{},
 			},
 			expectedRepos: []github.Repo{},
 		},
@@ -2609,7 +2609,7 @@ func TestConfigureRepos(t *testing.T) {
 			expectedRepos: []github.Repo{oldRepo},
 		},
 		{
-			description: "GetRepos failure is propagated",
+			description:     "GetRepos failure is propagated",
 			orgNameOverride: "fail",
 			orgConfig: org.Config{
 				Repos: map[string]org.Repo{
@@ -2618,7 +2618,7 @@ func TestConfigureRepos(t *testing.T) {
 			},
 			repos: []github.Repo{oldRepo},
 
-			expectError: true,
+			expectError:   true,
 			expectedRepos: []github.Repo{oldRepo},
 		},
 		{
@@ -2630,7 +2630,7 @@ func TestConfigureRepos(t *testing.T) {
 			},
 			repos: []github.Repo{oldRepo},
 
-			expectError: true,
+			expectError:   true,
 			expectedRepos: []github.Repo{oldRepo},
 		},
 	}

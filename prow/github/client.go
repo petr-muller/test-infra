@@ -3159,7 +3159,7 @@ func (c *client) GetColumnProjectCards(columnID int) ([]ProjectCard, error) {
 	var cards []ProjectCard
 	err := c.readPaginatedResults(
 		path,
-		//projects api requies the accept header to be set this way
+		// projects api requies the accept header to be set this way
 		"application/vnd.github.inertia-preview+json",
 		func() interface{} {
 			return &[]ProjectCard{}

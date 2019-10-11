@@ -91,7 +91,7 @@ func (o *options) parseArgs(flags *flag.FlagSet, args []string) error {
 	flags.BoolVar(&o.fixTeams, "fix-teams", false, "Create/delete/update teams if set")
 	flags.BoolVar(&o.fixTeamMembers, "fix-team-members", false, "Add/remove team members if set")
 	flags.BoolVar(&o.fixTeamRepos, "fix-team-repos", false, "Add/remove team permissions on repos if set")
-	flags.BoolVar(&o.fixRepos, "fix-repos", false, "Create/update repositories if set")
+	flags.BoolVar(&o.fixRepos, "fix-repos", false, "Create repositories if set")
 	flags.StringVar(&o.logLevel, "log-level", logrus.InfoLevel.String(), fmt.Sprintf("Logging level, one of %v", logrus.AllLevels))
 	o.github.AddFlags(flags)
 	if err := flags.Parse(args); err != nil {
@@ -341,7 +341,7 @@ func dumpOrgConfig(client dumpClient, orgName string, ignoreSecretTeams bool) (*
 	out.Repos = make(map[string]org.Repo, len(repos))
 	for idx, repo := range repos {
 		logrus.WithField("repo", repo.FullName).Debug("Recording repo.")
-		repoConf := org.Repo{
+		out.Repos[repos[idx].Name] = org.Repo{
 			Description: &repos[idx].Description,
 			HomePage:    &repos[idx].Homepage,
 			Private:     &repos[idx].Private,
@@ -349,7 +349,6 @@ func dumpOrgConfig(client dumpClient, orgName string, ignoreSecretTeams bool) (*
 			HasProjects: &repos[idx].HasProjects,
 			HasWiki:     &repos[idx].HasWiki,
 		}
-		out.Repos[repos[idx].Name] = repoConf
 	}
 
 	return &out, nil
@@ -725,7 +724,7 @@ func updateBool(have, want *bool) bool {
 	case want == nil:
 		return false // do not care what we have
 	case *have == *want:
-		return false //already have it
+		return false // already have it
 	}
 	*have = *want // update value
 	return true
@@ -806,7 +805,7 @@ func configureOrg(opt options, client github.Client, orgName string, orgConfig o
 		return fmt.Errorf("failed to configure %s members: %v", orgName, err)
 	}
 
-	// Create/update repositories in the org
+	// Create repositories in the org
 	if !opt.fixRepos {
 		logrus.Info("Skipping org repositories configuration")
 	} else if err := configureRepos(client, orgName, orgConfig); err != nil {
@@ -872,11 +871,9 @@ func configureRepos(client repoClient, orgName string, orgConfig org.Config) err
 
 	var createErrors []error
 	for wantName, wantRepo := range orgConfig.Repos {
-		_, has := byName[wantName]
-		if !has {
+		if _, have := byName[wantName]; !have {
 			logrus.WithField("repo", wantName).Info("repo does not exist, creating")
-			_, err := client.CreateRepo(orgName, false, toGitHubRepo(wantName, wantRepo))
-			if err != nil {
+			if _, err := client.CreateRepo(orgName, false, toGitHubRepo(wantName, wantRepo)); err != nil {
 				createErrors = append(createErrors, err)
 			}
 		}
