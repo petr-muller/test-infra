@@ -1975,10 +1975,13 @@ func TestCombinedStatus(t *testing.T) {
 
 func TestCreateRepo(t *testing.T) {
 	org := "org"
+	usersRepoName := "users-repository"
+	orgsRepoName := "orgs-repository"
+	repoDesc := "description of users-repository"
 	testCases := []struct {
 		description string
 		isUser      bool
-		repo        Repo
+		repo        RepoCreateRequest
 		statusCode  int
 
 		expectError bool
@@ -1987,9 +1990,11 @@ func TestCreateRepo(t *testing.T) {
 		{
 			description: "create repo as user",
 			isUser:      true,
-			repo: Repo{
-				Name:        "users-repository",
-				Description: "description of users-repository",
+			repo: RepoCreateRequest{
+				RepoRequest: RepoRequest{
+					Name:        &usersRepoName,
+					Description: &repoDesc,
+				},
 			},
 			statusCode: http.StatusCreated,
 			expectRepo: &Repo{
@@ -2000,9 +2005,11 @@ func TestCreateRepo(t *testing.T) {
 		{
 			description: "create repo as org",
 			isUser:      false,
-			repo: Repo{
-				Name:        "orgs-repository",
-				Description: "description of users-repository",
+			repo: RepoCreateRequest{
+				RepoRequest: RepoRequest{
+					Name:        &orgsRepoName,
+					Description: &repoDesc,
+				},
 			},
 			statusCode: http.StatusCreated,
 			expectRepo: &Repo{
@@ -2013,9 +2020,11 @@ func TestCreateRepo(t *testing.T) {
 		{
 			description: "errors are handled",
 			isUser:      false,
-			repo: Repo{
-				Name:        "orgs-repository",
-				Description: "description of users-repository",
+			repo: RepoCreateRequest{
+				RepoRequest: RepoRequest{
+					Name:        &orgsRepoName,
+					Description: &repoDesc,
+				},
 			},
 			statusCode:  http.StatusForbidden,
 			expectError: true,

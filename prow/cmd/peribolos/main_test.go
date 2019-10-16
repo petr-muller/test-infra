@@ -2504,19 +2504,20 @@ func (f fakeRepoClient) GetRepos(orgName string, isUser bool) ([]github.Repo, er
 	return repos, nil
 }
 
-func (f fakeRepoClient) CreateRepo(owner string, isUser bool, repo github.Repo) (*github.Repo, error) {
-	if repo.Name == "fail" {
+func (f fakeRepoClient) CreateRepo(owner string, isUser bool, repoReq github.RepoCreateRequest) (*github.Repo, error) {
+	if *repoReq.Name == "fail" {
 		return nil, fmt.Errorf("injected CreateRepo failure")
 	}
 
-	if _, hasRepo := f.repos[repo.Name]; hasRepo {
+	if _, hasRepo := f.repos[*repoReq.Name]; hasRepo {
 		f.t.Errorf("CreateRepo() called on repo that already exists")
 		return nil, fmt.Errorf("CreateRepo() called on repo that already exists")
 	}
 
-	f.repos[repo.Name] = repo
+	repo := repoReq.ToRepo()
+	f.repos[*repoReq.Name] = *repo
 
-	return &repo, nil
+	return repo, nil
 }
 
 func makeFakeRepoClient(t *testing.T, repos ...github.Repo) fakeRepoClient {

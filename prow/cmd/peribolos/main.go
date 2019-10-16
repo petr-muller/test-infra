@@ -842,20 +842,29 @@ func configureOrg(opt options, client github.Client, orgName string, orgConfig o
 
 type repoClient interface {
 	GetRepos(orgName string, isUser bool) ([]github.Repo, error)
-	CreateRepo(owner string, isUser bool, repo github.Repo) (*github.Repo, error)
+	CreateRepo(owner string, isUser bool, repo github.RepoCreateRequest) (*github.Repo, error)
 }
 
-func toGitHubRepo(name string, definition org.Repo) github.Repo {
-	ghRepo := github.Repo{Name: name}
+func newRepoCreateRequest(name string, definition org.Repo) github.RepoCreateRequest {
+	repoCreate := github.RepoCreateRequest{}
+	repoCreate.Name = &name
+	repoCreate.Description = definition.Description
+	repoCreate.Homepage = definition.HomePage
+	repoCreate.Private = definition.Private
+	repoCreate.HasWiki = definition.HasWiki
+	repoCreate.HasProjects = definition.HasProjects
+	repoCreate.HasIssues = definition.HasIssues
+	repoCreate.AllowSquashMerge = definition.AllowSquashMerge
+	repoCreate.AllowMergeCommit = definition.AllowMergeCommit
+	repoCreate.AllowRebaseMerge = definition.AllowRebaseMerge
 
-	updateString(&ghRepo.Description, definition.Description)
-	updateString(&ghRepo.Homepage, definition.HomePage)
-	updateBool(&ghRepo.Private, definition.Private)
-	updateBool(&ghRepo.HasWiki, definition.HasWiki)
-	updateBool(&ghRepo.HasProjects, definition.HasProjects)
-	updateBool(&ghRepo.HasIssues, definition.HasIssues)
+	if definition.OnCreate != nil {
+		repoCreate.AutoInit = definition.OnCreate.AutoInit
+		repoCreate.GitignoreTemplate = definition.OnCreate.GitignoreTemplate
+		repoCreate.LicenseTemplate = definition.OnCreate.LicenseTemplate
+	}
 
-	return ghRepo
+	return repoCreate
 }
 
 func configureRepos(client repoClient, orgName string, orgConfig org.Config) error {
@@ -873,7 +882,7 @@ func configureRepos(client repoClient, orgName string, orgConfig org.Config) err
 	for wantName, wantRepo := range orgConfig.Repos {
 		if _, have := byName[wantName]; !have {
 			logrus.WithField("repo", wantName).Info("repo does not exist, creating")
-			if _, err := client.CreateRepo(orgName, false, toGitHubRepo(wantName, wantRepo)); err != nil {
+			if _, err := client.CreateRepo(orgName, false, newRepoCreateRequest(wantName, wantRepo)); err != nil {
 				createErrors = append(createErrors, err)
 			}
 		}
